@@ -13,11 +13,12 @@ class MyEnum(Enum):
     A = 1
     B = 2
 
+
 class CustomObject:
     def _asdict(self):
         return {'giga_key': 'giga_value'}
 
-# Test class
+
 class CustomJSONEncoderTestCase(unittest.TestCase):
     def test_date(self):
         date = datetime.date(2023, 4, 1)
@@ -53,7 +54,17 @@ class CustomJSONEncoderTestCase(unittest.TestCase):
 
     def test_complex(self):
         c = 1 + 2j
-        self.assertEqual(json.dumps(c), '{\n    "imag": 2.0,\n    "real": 1.0\n}')
+        self.assertEqual(json.dumps(c), '"1 + 2i"')
+        c = 0 + 1j
+        self.assertEqual(json.dumps(c), '"0 + 1i"')
+        c = 4.1 - 0j
+        self.assertEqual(json.dumps(c), '"4.1 + 0i"')
+        c = 3.14 - 2.4j
+        self.assertEqual(json.dumps(c), '"3.14 - 2.4i"')
+        c = 0 + 0j
+        self.assertEqual(json.dumps(c), '"0 + 0i"')
+        c = 2j
+        self.assertEqual(json.dumps(c), '"0 + 2i"')
 
     def test_asdict(self):
         obj = CustomObject()
@@ -61,6 +72,12 @@ class CustomJSONEncoderTestCase(unittest.TestCase):
 
     def test_enum(self):
         self.assertEqual(json.dumps(MyEnum.A), '1')
+
+    def test_memory_view_serialization(self):
+        data = bytearray(b'hello world')
+        mem_view = memoryview(data)
+        serialized_data = json.dumps(mem_view)
+        self.assertEqual(serialized_data, '"hello world"')
 
     def test_fallback_to_str(self):
         obj = object()

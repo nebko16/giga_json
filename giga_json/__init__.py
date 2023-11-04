@@ -68,11 +68,21 @@ class GigaEncoder(og_json.JSONEncoder):
                     return o.serialize()
                 except (TypeError, ValueError):
                     pass
+            elif isinstance(o, (list, tuple, bytearray, set, frozenset, range)):
+                try:
+                    return list(iter(o))
+                except (TypeError, ValueError):
+                    pass
             # these types are already serializable, but this is to catch objects that extend those classes, so we can
             # try to serialize them, otherwise this wouldn't be needed
-            elif isinstance(o, (dict, list, tuple, str, int, float, bool, type(None))):
+            elif isinstance(o, (str, int, float, bool, type(None))):
                 try:
                     return o
+                except (TypeError, ValueError):
+                    pass
+            elif isinstance(o, memoryview):
+                try:
+                    return o.tobytes().decode('utf-8')
                 except (TypeError, ValueError):
                     pass
             elif isinstance(o, Decimal):
@@ -100,8 +110,12 @@ class GigaEncoder(og_json.JSONEncoder):
             elif isinstance(o, bytes):
                 try:
                     return o.decode('utf-8')
-                except (TypeError, ValueError):
-                    pass
+                except UnicodeDecodeError:
+                    import base64
+                    try:
+                        return base64.b64encode(o).decode('ascii')
+                    except (TypeError, ValueError):
+                        pass
             elif isinstance(o, Enum):
                 try:
                     return o.value
@@ -114,9 +128,13 @@ class GigaEncoder(og_json.JSONEncoder):
                     pass
             elif isinstance(o, complex):
                 try:
-                    return {'real': o.real, 'imag': o.imag}
+                    r, i = decimal_trunc(o.real), decimal_trunc(o.imag)
+                    s = f' + {i}i' if i >= 0 else f' - {i*-1}i'
+                    return f"{r}{s}"
                 except (TypeError, ValueError):
                     pass
+            elif is_dict_like(o):
+                return dict(o.items() if hasattr(o, 'items') else o)
             # any objects you can directly iterate, this will serialize
             elif (isinstance(o, Iterable) and not isinstance(o, (str, bytes, bytearray))) or hasattr(o, '__iter__'):
                 try:
@@ -126,17 +144,26 @@ class GigaEncoder(og_json.JSONEncoder):
             # if all other serialization attempts either didn't match or didn't succeed, we either raise if raise on
             # error flag is set to True, otherwise we return json null (which is the default behavior)
             else:
-                try:
-                    return str(o)
-                except (TypeError, ValueError):
-                    if self.raise_on_error:
-                        raise
-                    return None
+                if self.raise_on_error:
+                    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable.")
+                else:
+                    try:
+                        return str(o)
+                    except (TypeError, ValueError):
+                        return None
         # intentionally leaving this broad since each section traps type/value errors
         except Exception:
             if self.raise_on_error:
                 raise
             return None
+
+
+def is_dict_like(obj):
+    return hasattr(obj, '__getitem__') and hasattr(obj, '__iter__')
+
+
+def decimal_trunc(num):
+    return int(num) if num == int(num) else num
 
 
 def og_dumps(obj, *, indent=None, sort_keys=False, **kwargs):
