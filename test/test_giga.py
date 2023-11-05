@@ -1,14 +1,18 @@
-import sys
 import os
+import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import unittest
 import datetime
-import uuid
 import giga_json as json
+import unittest
+import uuid
 try:
-    import torch
+    import flask
 except ImportError:
-    torch = None
+    flask = None
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 try:
     import numpy as np
 except ImportError:
@@ -18,30 +22,23 @@ try:
 except ImportError:
     pd = None
 try:
-    import tensorflow as tf
-except ImportError:
-    tf = None
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    plt = None
-try:
     import requests
 except ImportError:
     requests = None
 try:
-    import flask
-except ImportError:
-    flask = None
-from decimal import Decimal
-from collections.abc import Mapping, Iterable
-from enum import Enum
-try:
     from scipy.sparse import csr_matrix
 except ImportError:
     csr_matrix = None
-
-""" test all the things! """
+try:
+    import tensorflow as tf
+except ImportError:
+    tf = None
+try:
+    import torch
+except ImportError:
+    torch = None
+from decimal import Decimal
+from enum import Enum
 
 
 if flask:
@@ -80,15 +77,6 @@ class CustomJSONEncoderTestCase(unittest.TestCase):
     @unittest.skipIf(flask is None, "flask is not installed.")
     def test_flask_request_get(self):
         response = self.app.get('/test', headers={'User-Agent': 'UnitTest'}, query_string={'param': 'value'})
-
-
-        print('\n\n\n\n\n\n\n')
-
-        print(type(response).__name__)
-
-        print('\n\n\n\n\n\n\n')
-
-
         actual = json.loads(response.data)
         expected = {'url': 'http://localhost/test?param=value', 'http_method': 'GET', 'headers': {'User-Agent': 'UnitTest', 'Host': 'localhost'}, 'user_agent': 'UnitTest', 'ip_address': '127.0.0.1', 'body': {'param': 'value'}}
         self.assertEqual(actual, expected)

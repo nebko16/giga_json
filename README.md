@@ -16,12 +16,23 @@
 
 ## What is it?
 
-**TL;DR:** Overrides only the `dumps()` function of the standard `json` module.  It sets default arguments for 
-`sort_keys` to `True` and `indent` to `4`, and also overrides the default encoder for the ability to serialize nearly 
-anything and returns `null` on failure to serialize instead of throwing an exception, unless the argument 
-`raise_on_error` is set to `True`.
+**TL;DR:** Imagine python's json module, except when you call json.dumps(your_object), it defaults to `indent=4, sort_keys=True`.  Also imagine having things like datetime objects in your dictionary, and doing a dumps, and not getting an exception.  Now imagine passing in objects like request module's response object, or pandas dataframes, or pytorch tensors, or flask's request object, and not only not raising an exception, but also serializing the data.  That's what this is.  But it's just a mild extension and override of what's still mostly just the standard python json module.
 
-But walls of text suck, so let's just jump right into examples.  First, let's start with the problems we're solving.
+## Philosophy
+Things I believe are important to software tools:
+- The most commonly used settings/parameters/patterns should be the default
+  - Most of the time, when I use json.dumps(), it's for quick troubleshooting.  I shouldn't need to type `indent=4, sort_keys=True` every time.
+  - But since this is just an extension/inheritance of the standard module, you can still use those two arguments to get the desired output format.
+- Adding convenience features can add value
+  - as long as they don't involve a loss of other functionality
+  - and as long as it doesn't come at the cost of reliability
+  - and as long as it doesn't come at the cost of performance
+JSON module doesn't serialize datetime objects
+  - by serializing datetime objects by default to ISO format, most users get the outcome they want, and users that prefer another format can parse it in their code before it reaches our encoder
+  - by never throwing an exception, the module doesn't become a burden
+  - but by allowing this feature to be overridden, as with all features in giga-json, the users don't lose any functionality to gain this convenience
+
+## Why?
 
 Are you familiar with the below exception?
 ```bash
@@ -196,14 +207,12 @@ Since the point of this module is convenience, by just forcing anything and ever
       ```
 
 ## Behaviors
-- when you do json.dumps(), you'll get pretty printed output by default (similar to pprint)
-- objects like datetime that the standard json module will throw an Exception on will serialize correctly
-- the other functions that come with the standard json module are included and are unmolested, so once you do: `import giga_json as json`, you can do json.load(), json.loads(), etc like you would with the standard module.
+- if you do the import like this: `import giga_json as json`, it will be virtually identical to the standard json module.  json.load() and json.loads() are literally the vanilla functions
 - the serializer has an intelligent order of checks.  for example, it checks for mapping before it tries iteration.  and before mapping, it checks the object for any built-in serialization methods, like to_json(), json(), etc.  this ensures that not only will your object be successfully serialized, but it will try the best method first
-- if a serialization match and attempt fails, the serializer is allowed to continue down the list in the case that another method might match and work for the given object, increasing the chance of successful serialization
+- if a serialization match and attempt fails, the serializer is allowed to continue down the list in case another method might match and work for the given object, increasing the chance of successful serialization
 - .og_dumps() is an alias to the standard json.dumps() method, completely unchanged, if you need it
-- .flat_dumps() uses giga_json's custom serializer, but its output argument defaults match standard json module, which means no pretty printing (no line breaks and no indents).  this is for convenience.  you can use normal dumps and pass in None for indent and False for sort_keys, and you will get an identical outcome
-- being a simple function override, giga_json's dumps() function still allows you to pass in your own indent and sort_keys value, as well as using default= to pass in your own custom serializer
+- .flat_dumps() uses giga_json's custom serializer, but its output argument defaults match standard json module, which means no pretty printing (no line breaks and no indents).  this is for convenience.  dumps() you'd probably use for troubleshooting, as it pretty prints, and you'd use this one for other purposes (like when you'd use jsonify)
+- this literally just inherits from standard json module, so all the original features are there.  you can still change indent and sort_keys and even pass in your own encode using default=
 
 ## Supported Objects
 **This list isn't exhaustive, as there are a lot of objects that would be handled by the various checks the encoder does, like looking for built-in serialization methods, checking for iteration dunder methods, etc.**
@@ -249,11 +258,36 @@ Since the point of this module is convenience, by just forcing anything and ever
 - TensorFLow Tensor
 - UUID
 
+## Examples
 
+This is just an extension of the standard JSON module, so the syntax is identical.
 
+```python
+>>> import giga_json as json
+>>> print(json.dumps({'hello': 'world!'}))
+{
+    'hello': 'world!'
+}
+```
 
+load() and loads() functions are literally the stock ones, completely untouched/unchanged
+```python
+>>> import giga_json as json
+>>> j1 = json.load(data_a)
+>>> j2 = json.loads(data_b)
+```
 
+even the original dumps() function is included, but under an aliased name, should you need it:
+```python
+>>> import giga_json as json
+>>> print(json.og_dumps({'hello': 'world!'}))
+{'hello': 'world!'}
+```
 
-
-
-
+if you want giga-json's convenient encoder, but prefer the default flat output formatting of standard json module, use flat_dumps():
+```python
+>>> import giga_json as json
+>>> from datetime import datetime
+>>> print(json.flat_dumps({'timestamp': datetime.now()}))
+{"timestamp": "2023-11-04T11:26:01.154089"}
+```
