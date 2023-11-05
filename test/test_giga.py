@@ -80,6 +80,15 @@ class CustomJSONEncoderTestCase(unittest.TestCase):
     @unittest.skipIf(flask is None, "flask is not installed.")
     def test_flask_request_get(self):
         response = self.app.get('/test', headers={'User-Agent': 'UnitTest'}, query_string={'param': 'value'})
+
+
+        print('\n\n\n\n\n\n\n')
+
+        print(type(response).__name__)
+
+        print('\n\n\n\n\n\n\n')
+
+
         actual = json.loads(response.data)
         expected = {'url': 'http://localhost/test?param=value', 'http_method': 'GET', 'headers': {'User-Agent': 'UnitTest', 'Host': 'localhost'}, 'user_agent': 'UnitTest', 'ip_address': '127.0.0.1', 'body': {'param': 'value'}}
         self.assertEqual(actual, expected)
