@@ -1,37 +1,31 @@
-import json as og_json
 import datetime
+import json as og_json
 from json import *
 from collections.abc import Mapping, Iterable
-
+from typing import Any, Optional, Union
 
 """
-99% of the time, if you do the import like this:
+will be virtually identical to the standard json module, except it pretty 
+prints by default, and the encoder is more resilient, and won't throw 
+exceptions by default.
+
+Example usage:
 
 import giga_json as json
-
-you can use it 100% identically to the standard json module like this:
-
 json.dumps(some_dict)
 
-what's different then?  two things.
- 
-first thing: defaults to dumps(indent=4, sort_keys=True)
-
-second thing: it uses a custom serializer, appropriately named GigaEncoder, to handle the serialization of most common 
-python objects to help avoid the annoying errors about objects that aren't json serializable.  not being able to do 
-json.dumps() on a dictionary or list containing datetime drove me crazy.  but that's just the tip of the iceberg.  see
-the https://github.com/nebko16/giga_json for the full details and examples
+see https://github.com/nebko16/giga_json for the full details and examples
 """
 
 
 class GigaEncoder(og_json.JSONEncoder):
 
-    def __init__(self, *args, raise_on_error=False, debug=False, **kwargs):
+    def __init__(self, *args, raise_on_error: bool = False, debug: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.raise_on_error = raise_on_error
         self.debug = debug
 
-    def default(self, o):
+    def default(self, o: Any) -> Optional[Any]:
         if self.debug:
             print(f"actual type: {type(o)}")
 
@@ -446,38 +440,26 @@ class GigaEncoder(og_json.JSONEncoder):
                     return None
 
 
-def is_dict_like(obj):
+def is_dict_like(obj: Any) -> bool:
     return hasattr(obj, '__getitem__') and hasattr(obj, '__iter__')
 
 
-def decimal_trunc(num):
+def decimal_trunc(num: Union[int, float]) -> Union[int, float]:
     return int(num) if num == int(num) else num
 
 
-def og_dumps(obj, *, indent=None, sort_keys=False, **kwargs):
-    """
-    easy access to the vanilla dumps for those that need or want it.  this is literally the
-    vanilla json.dumps(), but with a different name.  it's here purely for convenience
-    """
+def og_dumps(obj: Any, *, indent: bool = None, sort_keys: bool = False, **kwargs) -> Optional[str]:
+    """ this is literally the vanilla json.dumps(), but with a different name.  it's here purely for convenience """
     return og_json.dumps(obj, indent=indent, sort_keys=sort_keys, **kwargs)
 
 
-def flat_dumps(obj, *, debug=False, raise_on_error=False, indent=None, sort_keys=False, **kwargs):
-    """
-    do you need the flexibility of giga_json's GigaEncoder serializer, but need the output to be flat (no line breaks or
-    indents)?  if yes, this is exactly what that.  better serialization flexibility but with vanilla output formatting
-    """
-    return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
-
-
-def dumps(obj, *, debug=False, raise_on_error=False, indent=4, sort_keys=True, **kwargs):
-    """
-    this one is why you're here.  the other functions are for convenience when needed, but this one is the magic sauce
+def flat_dumps(obj: Any, *, debug: bool = False, raise_on_error: bool = False, indent: Optional[int] = None, sort_keys: bool = False, **kwargs) -> Optional[str]:
+    """ same as dumps(), but no pretty printing (no indents/no sort_keys).  basically leverages GigaEncoder but defaults
+    to flat output like vanilla json dumps.  equivalent to dumps(obj, indent=None, sort_keys=False)
     """
     return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
 
 
-
-'''
-Picklete
-'''
+def dumps(obj: Any, *, debug: bool = False, raise_on_error: bool = False, indent: Optional[int] = 4, sort_keys: bool = True, **kwargs) -> Optional[str]:
+    """ this one is why you're here.  this is the magic sauce """
+    return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
