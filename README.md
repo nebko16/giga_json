@@ -12,8 +12,16 @@
     ▀▀██▄ ▀████▀       ▀████▀              ▀████▀                           ▄██▀
 ```
 
+## Installation: `python -m pip install giga-json`
+
 ## What is it?
-Walls of text suck, so let's just jump right into examples.  First, let's start with the problems we're solving.
+
+**TL;DR:** Overrides only the `dumps()` function of the standard `json` module.  It sets default arguments for 
+`sort_keys` to `True` and `indent` to `4`, and also overrides the default encoder for the ability to serialize nearly 
+anything and returns `null` on failure to serialize instead of throwing an exception, unless the argument 
+`raise_on_error` is set to `True`.
+
+But walls of text suck, so let's just jump right into examples.  First, let's start with the problems we're solving.
 
 Are you familiar with the below exception?
 ```bash
