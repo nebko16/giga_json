@@ -50,8 +50,25 @@ No more TypeError?  Indeed!  And there's much more!
 >>> 
 >>> print(json.dumps(response))
 {
-    "fact": "The most popular pedigreed cat is the Persian cat, followed by the Main Coon cat and the Siamese cat.",
-    "length": 101
+    "fact": "On average, cats spend 2/3 of every day sleeping. That means a nine-year-old cat has been awake for only three years of its life.",
+    "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache, private",
+        "Connection": "keep-alive",
+        "Content-Encoding": "gzip",
+        "Content-Type": "application/json",
+        "Server": "nginx",
+        "Transfer-Encoding": "chunked",
+        "Vary": "Accept-Encoding",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "X-Ratelimit-Limit": "100",
+        "X-Ratelimit-Remaining": "98",
+        "X-XSS-Protection": "1; mode=block"
+    },
+    "length": 129,
+    "reason": "OK",
+    "status_code": 200
 }
 ```
 
@@ -179,3 +196,56 @@ Since the point of this module is convenience, by just forcing anything and ever
 - .og_dumps() is an alias to the standard json.dumps() method, completely unchanged, if you need it
 - .flat_dumps() uses giga_json's custom serializer, but its output argument defaults match standard json module, which means no pretty printing (no line breaks and no indents).  this is for convenience.  you can use normal dumps and pass in None for indent and False for sort_keys, and you will get an identical outcome
 - being a simple function override, giga_json's dumps() function still allows you to pass in your own indent and sort_keys value, as well as using default= to pass in your own custom serializer
+
+## Supported Objects
+**This list isn't exhaustive, as there are a lot of objects that would be handled by the various checks the encoder does, like looking for built-in serialization methods, checking for iteration dunder methods, etc.**
+
+- bytes
+- bytearray
+- complex
+- custom dict-like objects
+- custom objects that contain built-in serializers
+  - obj.json()
+  - obj.to_json()
+  - obj.to_JSON()
+  - obj.as_json()
+  - obj.get_json()
+  - obj.serialize()
+- date
+- datetime
+- Decimal
+- Enum
+- Flask.request
+- frozenset
+- Iterables
+- Mappings
+- MatPlotLib Plots
+- memoryview
+- named tuple
+- NumPy
+  - MaskedArray
+  - dtype
+  - matrix
+  - ndarray
+  - number
+  - recarray
+- Pandas
+  - DataFrames
+  - Index
+  - Series
+- PyTorch Tensor
+- range
+- Requests.Response
+- SciPy Spare Matrix
+- set
+- TensorFLow Tensor
+- UUID
+
+
+
+
+
+
+
+
+

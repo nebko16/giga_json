@@ -1,9 +1,6 @@
 import os
 from setuptools import setup, find_packages
 
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
-
 setup(
     name='giga_json',
     version='1.0.0',
@@ -13,7 +10,6 @@ setup(
     license='GPL-3.0',
     keywords='python python3 json giga gigajson giga_json module pprint dumps indent prettyprint pretty print format serializer',
     packages=find_packages(),
-    long_description=read('README.md'),
     install_requires=[],
     python_requires='>=3.6',
     url='https://github.com/nebko16/giga_json'

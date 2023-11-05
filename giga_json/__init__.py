@@ -1,10 +1,42 @@
 import uuid
-from json import *
 import json as og_json
 import datetime
+try:
+    import torch
+except ImportError:
+    torch = None
+try:
+    import numpy as np
+except ImportError:
+    np = None
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+try:
+    import tensorflow as tf
+except ImportError:
+    tf = None
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
+try:
+    import requests
+except ImportError:
+    requests = None
+try:
+    import flask
+except ImportError:
+    flask = None
+from json import *
 from decimal import Decimal
 from collections.abc import Mapping, Iterable
 from enum import Enum
+try:
+    from scipy.sparse import isspmatrix
+except ImportError:
+    isspmatrix = None
 
 """
 99% of the time, if you do the import like this:
@@ -28,134 +60,421 @@ the https://github.com/nebko16/giga_json for the full details and examples
 
 class GigaEncoder(og_json.JSONEncoder):
 
-    def __init__(self, *args, raise_on_error=False, **kwargs):
+    def __init__(self, *args, raise_on_error=False, debug=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.raise_on_error = raise_on_error
+        self.debug = debug
 
     def default(self, o):
-        try:
-            # the one I think the standard module should have supported
-            if isinstance(o, (datetime.date, datetime.datetime)):
+
+        if self.debug:
+            print(f"actual type: {type(o)}")
+
+        if isinstance(o, (datetime.date, datetime.datetime)):
+            if self.debug:
+                print(f"match: datetime")
+
+            try:
+                return o.isoformat()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # requests support
+
+        elif requests and isinstance(o, requests.models.Response):
+            if self.debug:
+                print(f"match: requests Response")
+
+            try:
+                jdata = o.json()
+                jdata['status_code'] = o.status_code
+                jdata['reason'] = o.reason
+                jdata['headers'] = o.headers
+                return jdata
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # flask support
+
+        elif flask and isinstance(o, flask.request.__class__):
+            if self.debug:
+                print(f"match: flask request")
+
+            try:
+                url = o.url
+                http_method = o.method
+                headers = dict(o.headers)
+                user_agent = o.headers.get('User-Agent')
+                ip_address = o.remote_addr
+                content_type = o.headers.get('Content-Type')
+
+                if o.method == 'POST':
+                    if content_type == 'application/json':
+                        body = o.json
+                    elif content_type == 'application/x-www-form-urlencoded':
+                        body = o.form
+                    elif content_type == 'multipart/form-data':
+                        body = o.form
+                    else:
+                        body = None
+                else:
+                    body = o.args
+
+                important_data = {
+                    'url': url,
+                    'http_method': http_method,
+                    'headers': headers,
+                    'user_agent': user_agent,
+                    'ip_address': ip_address,
+                    'body': body
+                }
+                return important_data
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # MatPlotLib support
+
+        elif plt and isinstance(o, plt.Axes):
+            if self.debug:
+                print(f"match: MatPlotLib Plot")
+
+            try:
+                # grab plot's source axes data, as that's probably most useful if we serialize a plot
+                plot_data = [{'x': line.get_xdata().tolist(), 'y': line.get_ydata().tolist()} for line in o.get_lines()]
+                return plot_data
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # SciPy support
+
+        elif isspmatrix and isspmatrix(o):
+            if self.debug:
+                print(f"match: SciPy sparse matrix")
+
+            try:
+                return o.toarray().tolist()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # PyTorch support
+
+        elif torch and isinstance(o, torch.Tensor):
+            if self.debug:
+                print(f"match: PyTorch tensor")
+
+            try:
+                return o.tolist()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # TensorFlow support
+
+        elif tf and isinstance(o, tf.Tensor):
+            if self.debug:
+                print(f"match: TensorFlow tensor")
+
+            try:
+                return o.numpy().tolist()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # Pandas support
+
+        elif pd and isinstance(o, pd.DataFrame):
+            if self.debug:
+                print(f"match: Pandas DataFrame")
+
+            try:
+                return o.to_dict(orient='records')
+            except (TypeError, ValueError):
+                pass
+
+        elif pd and isinstance(o, pd.Series):
+            if self.debug:
+                print(f"match: Pandas Series")
+
+            try:
+                return o.to_dict()
+            except (TypeError, ValueError):
+                pass
+
+        elif pd and isinstance(o, pd.Index):
+            if self.debug:
+                print(f"match: Pandas Index")
+
+            try:
+                return o.tolist()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # this block checks to see if an object might have its own built-in serialization.  if it does, we use that, as
+        # it's likely going to handle serialization better than relying on dunder checks later in our encoder
+
+        elif hasattr(o, 'to_json'):
+            if self.debug:
+                print(f"match: to_json()")
+
+            try:
+                return o.to_json()
+            except (TypeError, ValueError):
+                pass
+
+        elif hasattr(o, 'json'):
+            if self.debug:
+                print(f"match: json()")
+
+            try:
+                return o.json()
+            except (TypeError, ValueError):
+                pass
+
+        elif hasattr(o, 'toJSON'):
+            if self.debug:
+                print(f"match: toJSON()")
+
+            try:
+                return o.toJSON()
+            except (TypeError, ValueError):
+                pass
+
+        elif hasattr(o, 'as_json'):
+            if self.debug:
+                print(f"match: as_json()")
+
+            try:
+                return o.as_json()
+            except (TypeError, ValueError):
+                pass
+
+        elif hasattr(o, 'get_json'):
+            if self.debug:
+                print(f"match: get_json()")
+
+            try:
+                return o.get_json()
+            except (TypeError, ValueError):
+                pass
+
+        elif hasattr(o, 'serialize'):
+            if self.debug:
+                print(f"match: serialize()")
+
+            try:
+                return o.serialize()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # NumPy support
+
+        elif np and isinstance(o, np.recarray):
+            if self.debug:
+                print(f"match: numpy recarray")
+
+            try:
+                return [dict(zip(o.dtype.names, record)) for record in o]
+            except (TypeError, ValueError):
+                pass
+
+        elif np and isinstance(o, np.ma.core.MaskedArray):
+            if self.debug:
+                print(f"match: numpy masked array")
+
+            try:
+                return {'data': o.data.tolist(), 'mask': o.mask.tolist()}
+            except (TypeError, ValueError):
+                pass
+
+        elif np and isinstance(o, np.ndarray):
+            if self.debug:
+                print(f"match: numpy ndarray")
+
+            try:
+                return o.tolist()
+            except (TypeError, ValueError):
+                pass
+
+        elif np and isinstance(o, np.number):
+            if self.debug:
+                print(f"match: numpy number")
+
+            try:
+                return o.item()
+            except (TypeError, ValueError):
+                pass
+
+        elif np and isinstance(o, np.dtype):
+            if self.debug:
+                print(f"match: numpy dtype")
+
+            try:
+                return str(o)
+            except (TypeError, ValueError):
+                pass
+
+        elif np and isinstance(o, np.matrix):
+            if self.debug:
+                print(f"match: numpy matrix")
+
+            try:
+                return o.tolist()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        elif isinstance(o, (bytearray, set, frozenset, range)):
+            if self.debug:
+                print(f"match: (bytearray, set, frozenset, range)")
+
+            try:
+                return list(iter(o))
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        elif isinstance(o, memoryview):
+            if self.debug:
+                print(f"match: memoryview")
+
+            try:
+                return o.tobytes().decode('utf-8')
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        elif isinstance(o, Decimal):
+            if self.debug:
+                print(f"match: Decimal")
+
+            try:
+                return float(o)
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        elif isinstance(o, uuid.UUID):
+            if self.debug:
+                print(f"match: UUID")
+
+            try:
+                return str(o)
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # named tuple
+
+        elif hasattr(o, '_asdict'):
+            if self.debug:
+                print(f"match: _asdict()")
+
+            try:
+                return o._asdict()
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # check for K:V types first, since they also meet the criteria for iterables, which would only take the keys
+
+        elif isinstance(o, Mapping):
+            if self.debug:
+                print(f"match: Mapping")
+
+            try:
+                return dict(o)
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        elif isinstance(o, bytes):
+            if self.debug:
+                print(f"match: bytes")
+
+            try:
+                return o.decode('utf-8')
+            except UnicodeDecodeError:
+                import base64
                 try:
-                    return o.isoformat()
+                    return base64.b64encode(o).decode('ascii')
                 except (TypeError, ValueError):
                     pass
-            # the next several check to see if an object might have its own built-in serialization.  if it does, we use
-            # that, as it's likely going to handle it better than relying on dunder methods checks below
-            elif hasattr(o, 'to_json'):
-                try:
-                    return o.to_json()
-                except (TypeError, ValueError):
-                    pass
-            # this one specifically will make your python requests module response objects directly serializable
-            elif hasattr(o, 'json'):
-                try:
-                    return o.json()
-                except (TypeError, ValueError):
-                    pass
-            elif hasattr(o, 'toJSON'):
-                try:
-                    return o.toJSON()
-                except (TypeError, ValueError):
-                    pass
-            elif hasattr(o, 'as_json'):
-                try:
-                    return o.as_json()
-                except (TypeError, ValueError):
-                    pass
-            elif hasattr(o, 'serialize'):
-                try:
-                    return o.serialize()
-                except (TypeError, ValueError):
-                    pass
-            elif isinstance(o, (list, tuple, bytearray, set, frozenset, range)):
-                try:
-                    return list(iter(o))
-                except (TypeError, ValueError):
-                    pass
-            # these types are already serializable, but this is to catch objects that extend those classes, so we can
-            # try to serialize them, otherwise this wouldn't be needed
-            elif isinstance(o, (str, int, float, bool, type(None))):
-                try:
-                    return o
-                except (TypeError, ValueError):
-                    pass
-            elif isinstance(o, memoryview):
-                try:
-                    return o.tobytes().decode('utf-8')
-                except (TypeError, ValueError):
-                    pass
-            elif isinstance(o, Decimal):
-                try:
-                    return float(o)
-                except (TypeError, ValueError):
-                    pass
-            elif isinstance(o, uuid.UUID):
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        elif isinstance(o, Enum):
+            if self.debug:
+                print(f"match: Enum")
+
+            try:
+                return o.value
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        elif isinstance(o, complex):
+            if self.debug:
+                print(f"match: complex")
+
+            try:
+                r, i = decimal_trunc(o.real), decimal_trunc(o.imag)
+                s = f' + {i}i' if i >= 0 else f' - {i*-1}i'
+                return f"{r}{s}"
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # objects that don't extend built-in types, and don't have _asdict(),  but have iter and getitem
+
+        elif is_dict_like(o):
+            if self.debug:
+                print(f"match: dict-like custom object")
+
+            try:
+                return dict(o.items() if hasattr(o, 'items') else o)
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # objects you can directly iterate. we do this last because many types actually fit this criteria
+
+        elif (isinstance(o, Iterable) and not isinstance(o, str)) or hasattr(o, '__iter__'):
+            if self.debug:
+                print(f"match: Iterable or has __iter__")
+
+            try:
+                return list(iter(o))
+            except (TypeError, ValueError):
+                pass
+
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # if all other serialization attempts either didn't match or didn't succeed, we either raise, if raise on error
+        # flag is set to True, otherwise we return json null
+
+        else:
+            if self.debug:
+                print(f"match: else")
+
+            if self.raise_on_error:
+                return super().default(o)
+            else:
                 try:
                     return str(o)
                 except (TypeError, ValueError):
-                    pass
-            elif hasattr(o, '_asdict'):
-                try:
-                    return o._asdict()
-                except (TypeError, ValueError):
-                    pass
-            # this covers objects containing dictionary-like data, so we check this first, otherwise the iterable check
-            # below will treat it as a list, and you'll obviously lose data that way, so we try this first
-            elif isinstance(o, Mapping):
-                try:
-                    return dict(o)
-                except (TypeError, ValueError):
-                    pass
-            elif isinstance(o, bytes):
-                try:
-                    return o.decode('utf-8')
-                except UnicodeDecodeError:
-                    import base64
-                    try:
-                        return base64.b64encode(o).decode('ascii')
-                    except (TypeError, ValueError):
-                        pass
-            elif isinstance(o, Enum):
-                try:
-                    return o.value
-                except (TypeError, ValueError):
-                    pass
-            elif isinstance(o, set):
-                try:
-                    return list(o)
-                except (TypeError, ValueError):
-                    pass
-            elif isinstance(o, complex):
-                try:
-                    r, i = decimal_trunc(o.real), decimal_trunc(o.imag)
-                    s = f' + {i}i' if i >= 0 else f' - {i*-1}i'
-                    return f"{r}{s}"
-                except (TypeError, ValueError):
-                    pass
-            elif is_dict_like(o):
-                return dict(o.items() if hasattr(o, 'items') else o)
-            # any objects you can directly iterate, this will serialize
-            elif (isinstance(o, Iterable) and not isinstance(o, (str, bytes, bytearray))) or hasattr(o, '__iter__'):
-                try:
-                    return list(iter(o))
-                except (TypeError, ValueError):
-                    pass
-            # if all other serialization attempts either didn't match or didn't succeed, we either raise if raise on
-            # error flag is set to True, otherwise we return json null (which is the default behavior)
-            else:
-                if self.raise_on_error:
-                    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable.")
-                else:
-                    try:
-                        return str(o)
-                    except (TypeError, ValueError):
-                        return None
-        # intentionally leaving this broad since each section traps type/value errors
-        except Exception:
-            if self.raise_on_error:
-                raise
-            return None
+                    return None
 
 
 def is_dict_like(obj):
@@ -174,17 +493,22 @@ def og_dumps(obj, *, indent=None, sort_keys=False, **kwargs):
     return og_json.dumps(obj, indent=indent, sort_keys=sort_keys, **kwargs)
 
 
-def flat_dumps(obj, *, indent=None, sort_keys=False, **kwargs):
+def flat_dumps(obj, *, debug=False, raise_on_error=False, indent=None, sort_keys=False, **kwargs):
     """
     do you need the flexibility of giga_json's GigaEncoder serializer, but need the output to be flat (no line breaks or
     indents)?  if yes, this is exactly what that.  better serialization flexibility but with vanilla output formatting
     """
-    return og_json.dumps(obj, cls=GigaEncoder, indent=indent, sort_keys=sort_keys, **kwargs)
+    return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
 
 
-def dumps(obj, *, raise_on_error=False, indent=4, sort_keys=True, **kwargs):
+def dumps(obj, *, debug=False, raise_on_error=False, indent=4, sort_keys=True, **kwargs):
     """
     this one is why you're here.  the other functions are for convenience when needed, but this one is the magic sauce
     """
-    return og_json.dumps(obj, cls=GigaEncoder, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
+    return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
 
+
+
+'''
+Picklete
+'''
