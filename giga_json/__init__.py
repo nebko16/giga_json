@@ -1,42 +1,8 @@
-import uuid
 import json as og_json
 import datetime
-try:
-    import torch
-except ImportError:
-    torch = None
-try:
-    import numpy as np
-except ImportError:
-    np = None
-try:
-    import pandas as pd
-except ImportError:
-    pd = None
-try:
-    import tensorflow as tf
-except ImportError:
-    tf = None
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    plt = None
-try:
-    import requests
-except ImportError:
-    requests = None
-try:
-    import flask
-except ImportError:
-    flask = None
 from json import *
-from decimal import Decimal
 from collections.abc import Mapping, Iterable
-from enum import Enum
-try:
-    from scipy.sparse import isspmatrix
-except ImportError:
-    isspmatrix = None
+
 
 """
 99% of the time, if you do the import like this:
@@ -66,10 +32,13 @@ class GigaEncoder(og_json.JSONEncoder):
         self.debug = debug
 
     def default(self, o):
-
         if self.debug:
             print(f"actual type: {type(o)}")
 
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        # date and datetime
+
+        object_type_name = type(o).__name__
         if isinstance(o, (datetime.date, datetime.datetime)):
             if self.debug:
                 print(f"match: datetime")
@@ -82,7 +51,7 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # requests support
 
-        elif requests and isinstance(o, requests.models.Response):
+        elif object_type_name == 'Response':
             if self.debug:
                 print(f"match: requests Response")
 
@@ -98,7 +67,7 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # flask support
 
-        elif flask and isinstance(o, flask.request.__class__):
+        elif object_type_name == 'Request':
             if self.debug:
                 print(f"match: flask request")
 
@@ -137,12 +106,11 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # MatPlotLib support
 
-        elif plt and isinstance(o, plt.Axes):
+        elif object_type_name == 'Axes':
             if self.debug:
                 print(f"match: MatPlotLib Plot")
 
             try:
-                # grab plot's source axes data, as that's probably most useful if we serialize a plot
                 plot_data = [{'x': line.get_xdata().tolist(), 'y': line.get_ydata().tolist()} for line in o.get_lines()]
                 return plot_data
             except (TypeError, ValueError):
@@ -151,7 +119,7 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # SciPy support
 
-        elif isspmatrix and isspmatrix(o):
+        elif object_type_name == 'csr_matrix':
             if self.debug:
                 print(f"match: SciPy sparse matrix")
 
@@ -163,7 +131,8 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # PyTorch support
 
-        elif torch and isinstance(o, torch.Tensor):
+        elif object_type_name == 'Tensor':
+
             if self.debug:
                 print(f"match: PyTorch tensor")
 
@@ -175,7 +144,7 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # TensorFlow support
 
-        elif tf and isinstance(o, tf.Tensor):
+        elif object_type_name == 'EagerTensor':
             if self.debug:
                 print(f"match: TensorFlow tensor")
 
@@ -187,7 +156,7 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # Pandas support
 
-        elif pd and isinstance(o, pd.DataFrame):
+        elif object_type_name == 'DataFrame':
             if self.debug:
                 print(f"match: Pandas DataFrame")
 
@@ -196,7 +165,7 @@ class GigaEncoder(og_json.JSONEncoder):
             except (TypeError, ValueError):
                 pass
 
-        elif pd and isinstance(o, pd.Series):
+        elif object_type_name == 'Series':
             if self.debug:
                 print(f"match: Pandas Series")
 
@@ -205,7 +174,7 @@ class GigaEncoder(og_json.JSONEncoder):
             except (TypeError, ValueError):
                 pass
 
-        elif pd and isinstance(o, pd.Index):
+        elif object_type_name == 'Index':
             if self.debug:
                 print(f"match: Pandas Index")
 
@@ -275,7 +244,7 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # NumPy support
 
-        elif np and isinstance(o, np.recarray):
+        elif object_type_name == 'recarray':
             if self.debug:
                 print(f"match: numpy recarray")
 
@@ -284,7 +253,7 @@ class GigaEncoder(og_json.JSONEncoder):
             except (TypeError, ValueError):
                 pass
 
-        elif np and isinstance(o, np.ma.core.MaskedArray):
+        elif object_type_name == 'MaskedArray':
             if self.debug:
                 print(f"match: numpy masked array")
 
@@ -293,7 +262,7 @@ class GigaEncoder(og_json.JSONEncoder):
             except (TypeError, ValueError):
                 pass
 
-        elif np and isinstance(o, np.ndarray):
+        elif object_type_name == 'ndarray':
             if self.debug:
                 print(f"match: numpy ndarray")
 
@@ -302,7 +271,7 @@ class GigaEncoder(og_json.JSONEncoder):
             except (TypeError, ValueError):
                 pass
 
-        elif np and isinstance(o, np.number):
+        elif object_type_name == 'int32':
             if self.debug:
                 print(f"match: numpy number")
 
@@ -311,7 +280,7 @@ class GigaEncoder(og_json.JSONEncoder):
             except (TypeError, ValueError):
                 pass
 
-        elif np and isinstance(o, np.dtype):
+        elif object_type_name == 'Int64DType':
             if self.debug:
                 print(f"match: numpy dtype")
 
@@ -320,7 +289,7 @@ class GigaEncoder(og_json.JSONEncoder):
             except (TypeError, ValueError):
                 pass
 
-        elif np and isinstance(o, np.matrix):
+        elif object_type_name == 'matrix':
             if self.debug:
                 print(f"match: numpy matrix")
 
@@ -353,7 +322,7 @@ class GigaEncoder(og_json.JSONEncoder):
 
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        elif isinstance(o, Decimal):
+        elif object_type_name == 'Decimal':
             if self.debug:
                 print(f"match: Decimal")
 
@@ -364,7 +333,7 @@ class GigaEncoder(og_json.JSONEncoder):
 
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        elif isinstance(o, uuid.UUID):
+        elif object_type_name == 'UUID':
             if self.debug:
                 print(f"match: UUID")
 
@@ -414,7 +383,7 @@ class GigaEncoder(og_json.JSONEncoder):
 
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        elif isinstance(o, Enum):
+        elif object_type_name == 'EnumMeta':
             if self.debug:
                 print(f"match: Enum")
 
