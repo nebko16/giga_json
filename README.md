@@ -97,75 +97,275 @@ As long as you do the import like this: `import giga_json as json`, it will be a
 
 What all can be serialized by giga_json's custom GigaEncoder?  All the things!  Ok probably not all, but it does cover most bases as you can see in this fairly extreme example:
 
+*(I removed the full setup code of the absurd example below, but you can see it in its entirety [here](documentation/bohemoth.md) if you're curious)*
 ```python
->>> from datetime import datetime
->>> from decimal import Decimal
->>> import giga_json as json
->>> 
->>> class room:
-...     def __init__(self): self.data = {'pie': 'thawn'}
-...     def __iter__(self): return iter(self.data)
-...     def __getitem__(self, key): return self.data[key]
-...     def items(self): return self.data.items()
-... 
->>> giga_data = {
-...     'math_things': [Decimal('3.141592654'), 9001, 4+2j, 0.02, hex(100)],
-...     'bin_things': ['hello world!', b'bite me', bytearray(b'giga'), memoryview(bytearray(b'hello world'))],
-...     'singleton_things': {True, False, None},
-...     'object_things': (datetime.now(), room()),
-...     'arrayish_things': (0, 1, [5, 4, {1, 2, range(3)}])
-... }
->>> 
->>> print(json.dumps(giga_data))
+import giga_json as json
+
+... see documentation/bohemoth.md for the full code for this silly example ...
+
+bohemoth = {
+    'Bytes': b'bite force',
+    'Bytearray': bytearray(b'giga'),
+    'Complex': 4+2j,
+    'custom dict-like object': room(),
+    'custom with built-in serialize': dismissed(),
+    'date': datetime.date(2023, 1, 1),
+    'datetime': datetime.datetime.now(),
+    'Decimal': Decimal('3.141592654'),
+    'dict': {'map': 'all', 'the': 'things'},
+    'Enum': MyEnum.A,
+    'Flask.request (get)': flask_request_get,
+    'flask.request (post)': flask_request_post,
+    'float': 3.14,
+    'frozenset': frozenset([1, 2, 3]),
+    'hex': hex(100),
+    'int': 42,
+    'Iterables': {1, 2},
+    'list': [1, 2],
+    'Mapping': {'any': 'mapping', 'types': 'parse'},
+    'matPlotLib.plot': mplp_plot,
+    'memoryview': memoryview(bytearray(b'hello world')),
+    'named tuple': CustomObject,
+    'NumPy.array': numpy.array([1, 2, 3]),
+    'NumPy.int': numpy_array,
+    'NumPy.dtype': numpy_array.dtype,
+    'NumPy.masked_array': numpy.ma.masked_array([1, 2], mask=[False, True]),
+    'NumPy.recarray': numpy_recarray,
+    'Pandas.DataFrame': pandas.DataFrame({'a': [1, 2], 'b': [3, 4]}),
+    'Pandas.Series': pandas.Series([1, 2, 3], index=['a', 'b', 'c']),
+    'Pandas.Index': pandas.Index([1, 2, 3]),
+    'PyTorch.Tensor': torch.tensor([[1, 2], [3, 4]]),
+    'range': range(3),
+    'Requests.Response': requests.get('https://catfact.ninja/fact'),
+    'SciPy.compressed_sparse_row_matrix': csr_matrix([[1, 0, 0], [0, 2, 0], [0, 0, 3]]),
+    'set': {1,2,3},
+    'singletons': (True, False, None),
+    'string': 'hello mars!',
+    'TensorFlow.Tensor': tensorflow.constant([[1, 2], [3, 4]]),
+    'tuple': (1, 2),
+    'UUID': uuid.uuid4()
+}
+print(json.dumps(bohemoth))
+```
+
+output:
+```json
 {
-    "arrayish_things": [
-        0,
+    "Bytearray": [
+        103,
+        105,
+        103,
+        97
+    ],
+    "Bytes": "bite force",
+    "Complex": "4 + 2i",
+    "Decimal": 3.141592654,
+    "Enum": 1,
+    "Flask.request (get)": {
+        "body": {
+            "param": "value"
+        },
+        "headers": {
+            "Host": "localhost",
+            "User-Agent": "UnitTest"
+        },
+        "http_method": "GET",
+        "ip_address": "127.0.0.1",
+        "url": "http://localhost/test?param=value",
+        "user_agent": "UnitTest"
+    },
+    "Iterables": [
         1,
-        [
-            5,
-            4,
-            [
-                [
-                    0,
-                    1,
-                    2
-                ],
-                1,
-                2
-            ]
-        ]
+        2
     ],
-    "bin_things": [
-        "hello world!",
-        "bite me",
-        [
-            103,
-            105,
-            103,
-            97
+    "Mapping": {
+        "any": "mapping",
+        "types": "parse"
+    },
+    "NumPy.array": [
+        1,
+        2,
+        3
+    ],
+    "NumPy.dtype": "int32",
+    "NumPy.int": 10,
+    "NumPy.masked_array": {
+        "data": [
+            1,
+            2
         ],
-        "hello world"
-    ],
-    "math_things": [
-        3.141592654,
-        9001,
-        "4 + 2i",
-        0.02,
-        "0x64"
-    ],
-    "object_things": [
-        "2023-11-04T05:09:04.022359",
+        "mask": [
+            false,
+            true
+        ]
+    },
+    "NumPy.recarray": [
         {
-            "pie": "thawn"
+            "x": 1,
+            "y": 1.0
+        },
+        {
+            "x": 2,
+            "y": 2.0
         }
     ],
-    "singleton_things": [
-        false,
+    "Pandas.DataFrame": [
+        {
+            "a": 1,
+            "b": 3
+        },
+        {
+            "a": 2,
+            "b": 4
+        }
+    ],
+    "Pandas.Index": [
+        1,
+        2,
+        3
+    ],
+    "Pandas.Series": {
+        "a": 1,
+        "b": 2,
+        "c": 3
+    },
+    "PyTorch.Tensor": [
+        [
+            1,
+            2
+        ],
+        [
+            3,
+            4
+        ]
+    ],
+    "Requests.Response": {
+        "fact": "When a cat chases its prey, it keeps its head level. Dogs and humans bob their heads up and down.",
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache, private",
+            "Connection": "keep-alive",
+            "Content-Encoding": "gzip",
+            "Content-Type": "application/json",
+            "Date": "Mon, 05 Nov 2023 22:23:40 GMT",
+            "Server": "nginx",
+            "Set-Cookie": "<redacted>",
+            "Transfer-Encoding": "chunked",
+            "Vary": "Accept-Encoding",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "SAMEORIGIN",
+            "X-Ratelimit-Limit": "100",
+            "X-Ratelimit-Remaining": "99",
+            "X-XSS-Protection": "1; mode=block"
+        },
+        "length": 97,
+        "reason": "OK",
+        "status_code": 200
+    },
+    "SciPy.compressed_sparse_row_matrix": [
+        [
+            1,
+            0,
+            0
+        ],
+        [
+            0,
+            2,
+            0
+        ],
+        [
+            0,
+            0,
+            3
+        ]
+    ],
+    "TensorFlow.Tensor": [
+        [
+            1,
+            2
+        ],
+        [
+            3,
+            4
+        ]
+    ],
+    "UUID": "48765bf4-4a1f-48bd-b2f0-37fccf68acb2",
+    "custom dict-like object": {
+        "pie": "thawn"
+    },
+    "custom with built-in serialize": {
+        "cake": "lie"
+    },
+    "date": "2023-01-01",
+    "datetime": "2023-11-05T22:23:10.048635",
+    "dict": {
+        "map": "all",
+        "the": "things"
+    },
+    "flask.request (post)": {
+        "body": {
+            "key": "value"
+        },
+        "headers": {
+            "Content-Length": "16",
+            "Content-Type": "application/json",
+            "Host": "localhost",
+            "User-Agent": "UnitTest"
+        },
+        "http_method": "POST",
+        "ip_address": "127.0.0.1",
+        "url": "http://localhost/test",
+        "user_agent": "UnitTest"
+    },
+    "float": 3.14,
+    "frozenset": [
+        1,
+        2,
+        3
+    ],
+    "hex": "0x64",
+    "int": 42,
+    "list": [
+        1,
+        2
+    ],
+    "matPlotLib.plot": [
+        {
+            "x": [
+                1,
+                2,
+                3
+            ],
+            "y": [
+                4,
+                5,
+                6
+            ]
+        }
+    ],
+    "memoryview": "hello world",
+    "named tuple": null,
+    "range": [
+        0,
+        1,
+        2
+    ],
+    "set": [
+        1,
+        2,
+        3
+    ],
+    "singletons": [
         true,
+        false,
         null
+    ],
+    "string": "hello mars!",
+    "tuple": [
+        1,
+        2
     ]
 }
-
 ```
 
 As an added convenience, you can use the flat_dumps() function to use giga_json's robust serializer/encoder, but default to flat output like the standard json module.  Calling this method is identical to calling `dumps(your_obj, indent=None, sort_keys=False)`.
