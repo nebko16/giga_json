@@ -3,6 +3,7 @@ import json as og_json
 from json import *
 from collections.abc import Mapping, Iterable
 from typing import Any, Optional, Union
+from enum import Enum
 
 """
 will be virtually identical to the standard json module, except it pretty 
@@ -26,13 +27,15 @@ class GigaEncoder(og_json.JSONEncoder):
         self.debug = debug
 
     def default(self, o: Any) -> Optional[Any]:
+        object_type_name = type(o).__name__
+        object_type = str(type(o))
         if self.debug:
-            print(f"actual type: {type(o)}")
+            print(f"actual type: {object_type}")
+            print(f"actual type.__name__: {object_type_name}")
 
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # date and datetime
 
-        object_type_name = type(o).__name__
         if isinstance(o, (datetime.date, datetime.datetime)):
             if self.debug:
                 print(f"match: datetime")
@@ -61,7 +64,7 @@ class GigaEncoder(og_json.JSONEncoder):
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # flask support
 
-        elif object_type_name == 'Request':
+        elif object_type == "<class 'werkzeug.local.LocalProxy'>":
             if self.debug:
                 print(f"match: flask request")
 
@@ -243,7 +246,8 @@ class GigaEncoder(og_json.JSONEncoder):
                 print(f"match: numpy recarray")
 
             try:
-                return [dict(zip(o.dtype.names, record)) for record in o]
+                from handlers.numpy import handle_recarray
+                return handle_recarray(o)
             except (TypeError, ValueError):
                 pass
 
@@ -299,7 +303,7 @@ class GigaEncoder(og_json.JSONEncoder):
                 print(f"match: (bytearray, set, frozenset, range)")
 
             try:
-                return list(iter(o))
+                return list(o)
             except (TypeError, ValueError):
                 pass
 
@@ -377,7 +381,7 @@ class GigaEncoder(og_json.JSONEncoder):
 
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        elif object_type_name == 'EnumMeta':
+        elif isinstance(o, Enum):
             if self.debug:
                 print(f"match: Enum")
 

@@ -49,6 +49,7 @@ if flask:
         return json.flat_dumps(flask.request)
 
 
+
 class MyEnum(Enum):
     A = 1
     B = 2
@@ -223,12 +224,18 @@ class CustomJSONEncoderTestCase(unittest.TestCase):
         response.headers = requests.structures.CaseInsensitiveDict({'Content-Type': 'application/json'})
         self.assertEqual(json.flat_dumps(response), '{"key": "value", "status_code": 200, "reason": "OK", "headers": {"Content-Type": "application/json"}}')
 
+    def test_frozenset_serialization(self):
+        actual = json.flat_dumps(frozenset([1, 2, 3]))
+        actual = list(json.loads(actual))
+        actual.sort()
+        # they're unordered so we're converting to list and sorting before assertion
+        self.assertEqual(str(actual), '[1, 2, 3]')
+
     def test_enum(self):
         self.assertEqual(json.dumps(MyEnum.A), '1')
 
     def test_memory_view_serialization(self):
-        data = bytearray(b'hello world')
-        mem_view = memoryview(data)
+        mem_view = memoryview(bytearray(b'hello world'))
         serialized_data = json.dumps(mem_view)
         self.assertEqual(serialized_data, '"hello world"')
 
