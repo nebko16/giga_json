@@ -18,84 +18,95 @@
 
 <hr>
 
-## TL;DR:
+## What is giga-json?
 
-Imagine python's json module.  And it pretty prints by default.  And it can serialize almost anything.  And objects it can't serialize return a null instead of throwing an exception.  Syntax is identical to vanilla json module because it just does very light extending and overriding of the standard module.  That's what this is.
+It's just a light extension of the excellent python json module.
 
-## Philosophy
-In my humble opinion:
-- The most commonly used settings/parameters/patterns should be the default.
-- Suppressing nuisance exceptions can be acceptable default behavior if you're able to override it.
-- Adding convenience features can add value, as long as it doesn't come at the cost of stability, functionality, or performance.
+Let's walk through a scenario to make it clear what drove me to create this.
 
-Python's json module is great.  It gets the job done and has processed unfathomable amounts of data, every day.  But I find that I'm using it most often to do quick troubleshooting, and when that's the case, I usually want pretty printing, and I want sort keys.  But typing this every time becomes tiresome.  It's also tiring when you just need to quickly dump some output, but you get an exception because your dictionary contains a datetime object.
+Something is broken, so you decide to quickly troubleshoot it.  Before breaking out the debugger, you decide to just import json and do a dumps on a dictionary.
 
-<hr>
-
-# Enter the Rabbit Hole...
-
-Are you familiar with the below exception?
+```python
+import json
+... broken code here...
+print(json.dumps(some_dict))
+```
 ```bash
 TypeError: Object of type datetime is not JSON serializable
 ```
 
-Do you find yourself typing `indent=4, sort_keys=True` way too often?
+Doh!  That's annoying.  Ok, let's remove the key for the timestamp so we can dump this data.
+
 ```python
-json.dumps(some_object, indent=4, sort_keys=True)
+del some_dict['timestamp']
+print(json.dumps(some_dict))
+```
+```bash
+{"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#", "contentVersion": "1.0.0.0", "parameters": {"eventHubNamespaceName": {"type": "string", "metadata": {"description": "The name of the EventHub namespace"}}, "eventHubName": {"type": "string", "metadata": {"description": "The name of the Event Hub"}}, "sqlServerName": {"type": "string", "metadata": {"description": "Name of the SQL Server"}}, "sqlServerUserName": {"type": "string", "metadata": {"description": "The administrator username of the SQL Server"}}, "sqlServerPassword": {"type": "securestring", "metadata": {"description": "The administrator password of the SQL Server"}}, "sqlServerDatabaseName": {"type": "string", "metadata": {"description": "The name of the SQL Server database"}}, "storageName": {"type": "string", "metadata": {"description": "The name of the storage account"}}, "functionAppName": {"type": "string", "metadata": {"description": "The name of the function app"}}}, "variables": {"blobContainerName": "windturbinecapture", "functionAppPlanName": "[concat(parameters('functionAppName'),'Plan')]", "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageName'))]"}, "resources": [{"type": "Microsoft.EventHub/namespaces", "apiVersion": "2017-04-01", "name": "[parameters('eventHubNamespaceName')]", "location": "[resourceGroup().location]", "sku": {"name": "Standard"}, "properties": {"isAutoInflateEnabled": "true", "maximumThroughputUnits": "7"}, "dependsOn": ["[resourceId('Microsoft.Storage/storageAccounts', parameters('storageName'))]"], "resources": [{"type": "EventHubs", "apiVersion": "2017-04-01", "name": "[parameters('eventHubName')]", "dependsOn": ["[concat('Microsoft.EventHub/namespaces/', parameters('eventHubNamespaceName'))]"], "properties": {"messageRetentionInDays": "1", "partitionCount": "2", "captureDescription": {"enabled": "true", "encoding": "Avro", "intervalInSeconds": "60", "sizeLimitInBytes": "314572800", "destination": {"name": "EventHubArchive.AzureBlockBlob", "properties": {"storageAccountResourceId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageName'))]", "blobContainer": "[variables('blobContainerName')]", "archiveNameFormat": "{Namespace}/{EventHub}/{PartitionId}/{Year}/{Month}/{Day}/{Hour}/{Minute}/{Second}"}}}}}]}, {"type": "Microsoft.Sql/servers", "apiVersion": "2014-04-01", "name": "[parameters('sqlServerName')]", "location": "[resourceGroup().location]", "scale": null, "properties": {"administratorLogin": "[parameters('sqlServerUserName')]", "administratorLoginPassword": "[parameters('sqlServerPassword')]", "version": "12.0"}, "resources": [{"type": "databases", "apiVersion": "2017-10-01-preview", "name": "[parameters('sqlServerDatabaseName')]", "location": "[resourceGroup().location]", "sku": {"name": "DW100c", "tier": "DataWarehouse"}, "properties": {"collation": "SQL_Latin1_General_CP1_CI_AS"}, "dependsOn": ["[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"]}, {"type": "firewallRules", "apiVersion": "2014-04-01", "name": "AllowAllAzureIps", "location": "[resourceGroup().location]", "dependsOn": ["[parameters('sqlServerName')]"], "properties": {"endIpAddress": "0.0.0.0", "startIpAddress": "0.0.0.0"}}]}, {"type": "Microsoft.Storage/storageAccounts", "apiVersion": "2016-01-01", "name": "[parameters('storageName')]", "location": "[resourceGroup().location]", "sku": {"name": "Standard_LRS", "tier": "Standard"}, "kind": "Storage", "tags": {}, "scale": null, "properties": {}, "dependsOn": []}, {"type": "Microsoft.Web/serverfarms", "apiVersion": "2015-08-01", "name": "[variables('functionAppPlanName')]", "location": "[resourceGroup().location]", "kind": "functionapp", "sku": {"name": "Y1", "tier": "Dynamic", "size": "Y1", "family": "Y", "capacity": 0}, "properties": {"name": "[variables('functionAppPlanName')]", "numberOfWorkers": 0}}, {"type": "Microsoft.Web/sites", "apiVersion": "2016-08-01", "name": "[parameters('functionAppName')]", "location": "[resourceGroup().location]", "kind": "functionapp", "dependsOn": ["[resourceId('Microsoft.Web/serverfarms', variables('functionAppPlanName'))]", "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageName'))]"], "properties": {"serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('functionAppPlanName'))]", "siteConfig": {"appSettings": [{"name": "AzureWebJobsDashboard", "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"}, {"name": "AzureWebJobsStorage", "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"}, {"name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING", "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"}, {"name": "WEBSITE_CONTENTSHARE", "value": "[toLower(parameters('functionAppName'))]"}, {"name": "StorageConnectionString", "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"}, {"name": "SqlDwConnection", "value": "[concat('Server=tcp:',parameters('sqlServerName'),'.database.windows.net,1433;Database=', parameters('sqlServerDatabaseName'), ';Trusted_Connection=False;User ID=',parameters('sqlServerUserName'),'@',parameters('sqlServerName'),';Password=',parameters('sqlServerPassword'),';Connection Timeout=30;Encrypt=True')]"}, {"name": "FUNCTIONS_EXTENSION_VERSION", "value": "~1"}, {"name": "WEBSITE_NODE_DEFAULT_VERSION", "value": "6.5.0"}]}}}]}
 ```
 
-If you answered yes to one or both of those questions, you might be interested in using `giga_json`.  Let's see some real
-examples.  A picture is worth a thousand words, so behold!
+Ahh, too many keys, and no formatting.  Let's pretty print it
 
 ```python
->>> import giga_json as json
->>> from datetime import datetime
->>> 
->>> some_dict = {'timestamp': datetime.now()}
->>>
->>> print(json.dumps(some_dict))
+print(json.dumps(some_dict, indent=4, sort_keys=True))
+```
+
+```bash
 {
-  "timestamp": "2023-11-03T23:20:39.943919"
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "WWW-dir": "/var/www",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "eventHubName": {
+            "metadata": {
+              
+  ... many many many more keys and values ...              
+              
+    "variables":
+    } {
+        "blobContainerName": "windturbinecapture",
+        "functionAppPlanName": "[concat(parameters('functionAppName'),'Plan')]",
+        "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageName'))]"
+    }
 }
 ```
 
-No more TypeError?  Indeed!  And there's much more!
+You're looking for 'WWW-dir' key, but don't see it at the end, but you did sort_keys=True.  What the heck?  (I'll give you a clue: capital letters sort above lower case letters, so W would come before the entire lowercase alphabet)
+
+Pretty annoying, right?  This is a common issue with sorting keys that are in camel-case, since keys like SAMAccoutnName start with caps, while others start with lower case.  Doing this day in and day out gets old.  json module works for its intended purpose, but as soon as you're troubleshooting and just need it to do what you ask of it, it can start to frustrate.
+
+Let's see what this would look like if you did this using giga-json:
 
 ```python
->>> import giga_json as json
->>> import requests
->>> 
->>> response = requests.get('https://catfact.ninja/fact')
->>> 
->>> print(json.dumps(response))
+import giga_json as json
+print(json.dumps(some_dict))
+```
+
+```bash
 {
-    "fact": "On average, cats spend 2/3 of every day sleeping. That means a nine-year-old cat has been awake for only three years of its life.",
-    "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-cache, private",
-        "Connection": "keep-alive",
-        "Content-Encoding": "gzip",
-        "Content-Type": "application/json",
-        "Server": "nginx",
-        "Transfer-Encoding": "chunked",
-        "Vary": "Accept-Encoding",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "SAMEORIGIN",
-        "X-Ratelimit-Limit": "100",
-        "X-Ratelimit-Remaining": "98",
-        "X-XSS-Protection": "1; mode=block"
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "eventHubName": {
+            "metadata": {
+
+   .... many many many more keys and values ....
+
+    "timestamp": "2023-11-07T03:46:07.453381",
+    "variables": {
+        "blobContainerName": "windturbinecapture",
+        "functionAppPlanName": "[concat(parameters('functionAppName'),'Plan')]",
+        "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageName'))]"
     },
-    "length": 129,
-    "reason": "OK",
-    "status_code": 200
+    "WWW-dir": "/var/www"
 }
 ```
 
-Cool, right?  You will struggle to find things that `giga_json` will fail to serialize, especially for Python's most commonly used objects.  You also probably noticed that it pretty prints by default without having to set `indent=4`.
+Boom.  First try, it parsed correctly, and even processed our datetime object into an ISO timestamp.  It defaulted to pretty print, and it defaulted to sort keys, and on top of that, it sorted the keys case insensitively, so the "WWW-dir" key you were looking for is at the end as you would expect.
 
-As long as you do the import like this: `import giga_json as json`, it will be a drop-in replacement for the standard json module, as far as usage syntax goes.  
+What if I told you that it can parse much more than just datetime objects?  How about Response objects from requests module?  Or flask request objects?  Or TensorFlow Tensors?  Or MabPlotLib Plots?
 
-What all can be serialized by giga_json's custom GigaEncoder?  All the things!  Ok probably not all, but it does cover most bases as you can see in this fairly extreme example:
+And you don't have to take my word for it.  Let's look at a really unrealistic and absurd (but fun) example:
 
 *(I removed the full setup code of the absurd example below, but you can see it in its entirety [here](documentation/bohemoth.md) if you're curious)*
 ```python
@@ -370,6 +381,18 @@ output:
 }
 ```
 
+Convenient, yeah?
+
+## Philosophy
+In my humble opinion:
+- The most commonly used settings/parameters/patterns should be the default.
+- Suppressing nuisance exceptions can be acceptable default behavior if you're able to override it.
+- Adding convenience features can add value, as long as it doesn't come at the cost of stability, functionality, or performance.
+
+Python's json module is great.  It gets the job done and has processed unfathomable amounts of data, every day.  But I find that I'm using it most often to do quick troubleshooting, and when that's the case, I usually want pretty printing, and I want sort keys.  But typing this every time becomes tiresome.  It's also tiring when you just need to quickly dump some output, but you get an exception because your dictionary contains a datetime object.
+
+<hr>
+
 As an added convenience, you can use the flat_dumps() function to use giga_json's robust serializer/encoder, but default to flat output like the standard json module.  Calling this method is identical to calling `dumps(your_obj, indent=None, sort_keys=False)`.
 ```python
 >>> print(json.flat_dumps(response))
@@ -408,6 +431,62 @@ Since the point of this module is convenience, by just forcing anything and ever
        TypeError: Object of type function is not JSON serializable.
       ```
 
+## Sorting
+
+`sort_keys` in the standard json module just does a string sort, and since capital letters in English have lower ascii numbers, they sort lower than lower-case letters, so Zebra would show up above antelope in an alphabetically sorted list.
+
+Walls of text suck, so let's do this visually:
+
+```python
+import json
+animals = {
+  'antelope': 0,
+  'deer': 0,
+  'elk': 0,
+  'Wallaby': 0,
+  'monkey': 0,
+  'lion': 0,
+  'chicken': 0,
+  'Zebra': 0
+}
+print(json.dumps(animals, sort_keys=True, indent=4))
+```
+```bash
+{
+    "Wallaby": 0,
+    "Zebra": 0,
+    "antelope": 0,
+    "chicken": 0,
+    "deer": 0,
+    "elk": 0,
+    "lion": 0,
+    "monkey": 0
+}
+```
+That doesn't look very alphabetized, right?
+
+Now let's try the same thing with giga-json:
+```python
+import giga-json as json
+print(json.dumps(animals))
+```
+```bash
+{
+    "antelope": 0,
+    "chicken": 0,
+    "deer": 0,
+    "elk": 0,
+    "lion": 0,
+    "monkey": 0,
+    "Wallaby": 0,
+    "Zebra": 0
+}
+```
+That's more like it!  This isn't a part of the standard json module, and while it is on by default, you can choose to disable it by using json.dumps(obj, ci_sort=False), and when you do that, it will let the standard json module do the sorting.
+
+`sort_keys` is on by default, but you can choose to turn it off if you wish with `json.dumps(obj, sort_keys=False)`. However, you can just use the shortcut for this: `flat_dumps()`.  It is `dumps()`, but with defaults for output formatting set to no line breaks and no indents (same as standard json module).
+
+
 ## Behaviors
 - if you do the import like this: `import giga_json as json`, it will be virtually identical to the standard json module.  json.load() and json.loads() are literally the vanilla functions
 - the serializer has an intelligent order of checks.  for example, it checks for mapping before it tries iteration.  and before mapping, it checks the object for any built-in serialization methods, like to_json(), json(), etc.  this ensures that not only will your object be successfully serialized, but it will try the best method first
@@ -415,6 +494,11 @@ Since the point of this module is convenience, by just forcing anything and ever
 - .og_dumps() is an alias to the standard json.dumps() method, completely unchanged, if you need it
 - .flat_dumps() uses giga_json's custom serializer, but its output argument defaults match standard json module, which means no pretty printing (no line breaks and no indents).  this is for convenience.  dumps() you'd probably use for troubleshooting, as it pretty prints, and you'd use this one for other purposes (like when you'd use jsonify)
 - this literally just inherits from standard json module, so all the original features are there.  you can still change indent and sort_keys and even pass in your own encode using default=
+- if you provide some really complex object, like with tuples as keys, which json module can't parse anyway, the sorting function can possibly break
+  - it tries to sort the object BEFORE sending it into the encoder
+  - if that fails, it then tries to let the standard module parse and serialize it
+  - if that succeeds, it then loads() the output, tries case-insensitive sort again, but this time against the object after it's been completely serialized by the encoder, then dumps() the object again  
+  - if that fails, it returns the traditionally sorted object by default as a fallback, unless raise_on_error is set to true, in which case it'll throw an exception
 
 ## Supported Objects
 **This list isn't exhaustive, as there are a lot of objects that would be handled by the various checks the encoder does, like looking for built-in serialization methods, checking for iteration dunder methods, etc.**

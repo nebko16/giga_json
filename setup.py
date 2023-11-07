@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='giga_json',
-    version='1.0.4',
+    version='1.0.5',
     author='nebko16',
     author_email='nebko16@gmail.com',
     description=("extension of python json module, but dumps pretty prints by default and the serializer can handle almost any python object you give it"),

@@ -452,18 +452,55 @@ def decimal_trunc(num: Union[int, float]) -> Union[int, float]:
     return int(num) if num == int(num) else num
 
 
+def _ci_sort(data):
+    """Recursive function to sort dictionaries and lists case-insensitively."""
+    if isinstance(data, dict):
+        sorted_items = sorted(
+            ((str(k), v) for k, v in data.items()),
+            key=lambda kv: kv[0].lower()
+        )
+        return {k: _ci_sort(v) for k, v in sorted_items}
+    elif isinstance(data, list):
+        return [_ci_sort(item) for item in data]
+    else:
+        return data
+
+
 def og_dumps(obj: Any, *, indent: bool = None, sort_keys: bool = False, **kwargs) -> Optional[str]:
     """ this is literally the vanilla json.dumps(), but with a different name.  it's here purely for convenience """
     return og_json.dumps(obj, indent=indent, sort_keys=sort_keys, **kwargs)
 
 
-def flat_dumps(obj: Any, *, debug: bool = False, raise_on_error: bool = False, indent: Optional[int] = None, sort_keys: bool = False, **kwargs) -> Optional[str]:
-    """ same as dumps(), but no pretty printing (no indents/no sort_keys).  basically leverages GigaEncoder but defaults
+def dumps(obj: Any, *, debug: bool = False, raise_on_error: bool = False, indent: Optional[int] = 4, ci_sort: bool = True, sort_keys: bool = True, **kwargs) -> Optional[str]:
+    """ this one is why you're here.  this is the magic sauce """
+
+    if sort_keys and ci_sort:
+        try:
+            return og_json.dumps(_ci_sort(obj), cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=False, **kwargs)
+
+        except Exception as _e_err:
+            if debug:
+                print(f"pre-serialization case-insensitive sort failed: {_e_err}")
+
+            obj_serialized = og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
+            try:
+                return og_json.dumps(_ci_sort(loads(obj_serialized)), indent=indent, sort_keys=False, **kwargs)
+
+            except Exception as _e_err:
+                if raise_on_error:
+                    raise Exception(f"both pre and post-serialization case-insensitive sorts failed: {_e_err}")
+
+                if debug:
+                    print(f"Post-serialization sort also failed: {_e_err}")
+
+                return obj_serialized
+    else:
+        return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
+
+
+def flat_dumps(obj: Any, *, debug: bool = False, raise_on_error: bool = False, indent: Optional[int] = None, ci_sort: bool = False, sort_keys: bool = False, **kwargs) -> Optional[str]:
+    """
+    same as dumps(), but no pretty printing (no indents/no sort_keys).  basically leverages GigaEncoder but defaults
     to flat output like vanilla json dumps.  equivalent to dumps(obj, indent=None, sort_keys=False)
     """
-    return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
-
-
-def dumps(obj: Any, *, debug: bool = False, raise_on_error: bool = False, indent: Optional[int] = 4, sort_keys: bool = True, **kwargs) -> Optional[str]:
-    """ this one is why you're here.  this is the magic sauce """
-    return og_json.dumps(obj, cls=GigaEncoder, debug=debug, raise_on_error=raise_on_error, indent=indent, sort_keys=sort_keys, **kwargs)
+    return dumps(obj, debug=debug, raise_on_error=raise_on_error, indent=indent, ci_sort=ci_sort, sort_keys=sort_keys, **kwargs)
