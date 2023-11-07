@@ -12,27 +12,27 @@
     ▀▀██▄ ▀████▀       ▀████▀              ▀████▀                           ▄██▀
 ```
 
+<hr>
+
 ## Installation: `python -m pip install giga-json`
 
-## What is it?
+<hr>
 
-**TL;DR:** Imagine python's json module, except when you call json.dumps(your_object), it defaults to `indent=4, sort_keys=True`.  Also imagine having things like datetime objects in your dictionary, and doing a dumps, and not getting an exception.  Now imagine passing in objects like request module's response object, or pandas dataframes, or pytorch tensors, or flask's request object, and not only not raising an exception, but also serializing the data.  That's what this is.  But it's just a mild extension and override of what's still mostly just the standard python json module.
+## TL;DR:
+
+Imagine python's json module.  And it pretty prints by default.  And it can serialize almost anything.  And objects it can't serialize return a null instead of throwing an exception.  Syntax is identical to vanilla json module because it just does very light extending and overriding of the standard module.  That's what this is.
 
 ## Philosophy
-Things I believe are important to software tools:
-- The most commonly used settings/parameters/patterns should be the default
-  - Most of the time, when I use json.dumps(), it's for quick troubleshooting.  I shouldn't need to type `indent=4, sort_keys=True` every time.
-  - But since this is just an extension/inheritance of the standard module, you can still use those two arguments to get the desired output format.
-- Adding convenience features can add value
-  - as long as they don't involve a loss of other functionality
-  - and as long as it doesn't come at the cost of reliability
-  - and as long as it doesn't come at the cost of performance
-JSON module doesn't serialize datetime objects
-  - by serializing datetime objects by default to ISO format, most users get the outcome they want, and users that prefer another format can parse it in their code before it reaches our encoder
-  - by never throwing an exception, the module doesn't become a burden
-  - but by allowing this feature to be overridden, as with all features in giga-json, the users don't lose any functionality to gain this convenience
+In my humble opinion:
+- The most commonly used settings/parameters/patterns should be the default.
+- Suppressing nuisance exceptions can be acceptable default behavior if you're able to override it.
+- Adding convenience features can add value, as long as it doesn't come at the cost of stability, functionality, or performance.
 
-## Why?
+Python's json module is great.  It gets the job done and has processed unfathomable amounts of data, every day.  But I find that I'm using it most often to do quick troubleshooting, and when that's the case, I usually want pretty printing, and I want sort keys.  But typing this every time becomes tiresome.  It's also tiring when you just need to quickly dump some output, but you get an exception because your dictionary contains a datetime object.
+
+<hr>
+
+# Enter the Rabbit Hole...
 
 Are you familiar with the below exception?
 ```bash
@@ -107,25 +107,25 @@ bohemoth = {
     'Bytes': b'bite force',
     'Bytearray': bytearray(b'giga'),
     'Complex': 4+2j,
-    'custom dict-like object': room(),
-    'custom with built-in serialize': dismissed(),
-    'date': datetime.date(2023, 1, 1),
-    'datetime': datetime.datetime.now(),
+    'Custom dict-like object': room(),
+    'Custom with built-in serialize': dismissed(),
+    'Date': datetime.date(2023, 1, 1),
+    'Datetime': datetime.datetime.now(),
     'Decimal': Decimal('3.141592654'),
-    'dict': {'map': 'all', 'the': 'things'},
+    'Dict': {'map': 'all', 'the': 'things'},
     'Enum': MyEnum.A,
     'Flask.request (get)': flask_request_get,
-    'flask.request (post)': flask_request_post,
-    'float': 3.14,
-    'frozenset': frozenset([1, 2, 3]),
-    'hex': hex(100),
-    'int': 42,
+    'Flask.request (post)': flask_request_post,
+    'Float': 3.14,
+    'Frozenset': frozenset([1, 2, 3]),
+    'Hex': hex(100),
+    'Int': 42,
     'Iterables': {1, 2},
-    'list': [1, 2],
+    'List': [1, 2],
     'Mapping': {'any': 'mapping', 'types': 'parse'},
-    'matPlotLib.plot': mplp_plot,
-    'memoryview': memoryview(bytearray(b'hello world')),
-    'named tuple': CustomObject,
+    'MatPlotLib.plot': mplp_plot,
+    'Memoryview': memoryview(bytearray(b'hello world')),
+    'Named tuple': CustomObject(),
     'NumPy.array': numpy.array([1, 2, 3]),
     'NumPy.int': numpy_array,
     'NumPy.dtype': numpy_array.dtype,
@@ -135,14 +135,14 @@ bohemoth = {
     'Pandas.Series': pandas.Series([1, 2, 3], index=['a', 'b', 'c']),
     'Pandas.Index': pandas.Index([1, 2, 3]),
     'PyTorch.Tensor': torch.tensor([[1, 2], [3, 4]]),
-    'range': range(3),
+    'Range': range(3),
     'Requests.Response': requests.get('https://catfact.ninja/fact'),
     'SciPy.compressed_sparse_row_matrix': csr_matrix([[1, 0, 0], [0, 2, 0], [0, 0, 3]]),
-    'set': {1,2,3},
-    'singletons': (True, False, None),
-    'string': 'hello mars!',
+    'Set': {1,2,3},
+    'Singletons': (True, False, None),
+    'String': 'hello mars!',
     'TensorFlow.Tensor': tensorflow.constant([[1, 2], [3, 4]]),
-    'tuple': (1, 2),
+    'Tuple': (1, 2),
     'UUID': uuid.uuid4()
 }
 print(json.dumps(bohemoth))
@@ -159,7 +159,19 @@ output:
     ],
     "Bytes": "bite force",
     "Complex": "4 + 2i",
+    "Custom dict-like object": {
+        "pie": "thawn"
+    },
+    "Custom with built-in serialize": {
+        "cake": "lie"
+    },
+    "Date": "2023-01-01",
+    "Datetime": "2023-11-06T18:32:50.912921",
     "Decimal": 3.141592654,
+    "Dict": {
+        "map": "all",
+        "the": "things"
+    },
     "Enum": 1,
     "Flask.request (get)": {
         "body": {
@@ -174,13 +186,58 @@ output:
         "url": "http://localhost/test?param=value",
         "user_agent": "UnitTest"
     },
+    "Flask.request (post)": {
+        "body": {
+            "key": "value"
+        },
+        "headers": {
+            "Content-Length": "16",
+            "Content-Type": "application/json",
+            "Host": "localhost",
+            "User-Agent": "UnitTest"
+        },
+        "http_method": "POST",
+        "ip_address": "127.0.0.1",
+        "url": "http://localhost/test",
+        "user_agent": "UnitTest"
+    },
+    "Float": 3.14,
+    "Frozenset": [
+        1,
+        2,
+        3
+    ],
+    "Hex": "0x64",
+    "Int": 42,
     "Iterables": [
+        1,
+        2
+    ],
+    "List": [
         1,
         2
     ],
     "Mapping": {
         "any": "mapping",
         "types": "parse"
+    },
+    "MatPlotLib.plot": [
+        {
+            "x": [
+                1,
+                2,
+                3
+            ],
+            "y": [
+                4,
+                5,
+                6
+            ]
+        }
+    ],
+    "Memoryview": "hello world",
+    "Named tuple": {
+        "giga_key": "giga_value"
     },
     "NumPy.array": [
         1,
@@ -239,15 +296,20 @@ output:
             4
         ]
     ],
+    "Range": [
+        0,
+        1,
+        2
+    ],
     "Requests.Response": {
-        "fact": "When a cat chases its prey, it keeps its head level. Dogs and humans bob their heads up and down.",
+        "fact": "The biggest wildcat today is the Siberian Tiger. It can be more than 12 feet (3.6 m) long (about the size of a small car) and weigh up to 700 pounds (317 kg).",
         "headers": {
             "Access-Control-Allow-Origin": "*",
             "Cache-Control": "no-cache, private",
             "Connection": "keep-alive",
             "Content-Encoding": "gzip",
             "Content-Type": "application/json",
-            "Date": "Mon, 05 Nov 2023 22:23:40 GMT",
+            "Date": "Tue, 07 Nov 2023 00:32:51 GMT",
             "Server": "nginx",
             "Set-Cookie": "<redacted>",
             "Transfer-Encoding": "chunked",
@@ -258,7 +320,7 @@ output:
             "X-Ratelimit-Remaining": "99",
             "X-XSS-Protection": "1; mode=block"
         },
-        "length": 97,
+        "length": 158,
         "reason": "OK",
         "status_code": 200
     },
@@ -279,6 +341,17 @@ output:
             3
         ]
     ],
+    "Set": [
+        1,
+        2,
+        3
+    ],
+    "Singletons": [
+        true,
+        false,
+        null
+    ],
+    "String": "hello mars!",
     "TensorFlow.Tensor": [
         [
             1,
@@ -289,82 +362,11 @@ output:
             4
         ]
     ],
-    "UUID": "48765bf4-4a1f-48bd-b2f0-37fccf68acb2",
-    "custom dict-like object": {
-        "pie": "thawn"
-    },
-    "custom with built-in serialize": {
-        "cake": "lie"
-    },
-    "date": "2023-01-01",
-    "datetime": "2023-11-05T22:23:10.048635",
-    "dict": {
-        "map": "all",
-        "the": "things"
-    },
-    "flask.request (post)": {
-        "body": {
-            "key": "value"
-        },
-        "headers": {
-            "Content-Length": "16",
-            "Content-Type": "application/json",
-            "Host": "localhost",
-            "User-Agent": "UnitTest"
-        },
-        "http_method": "POST",
-        "ip_address": "127.0.0.1",
-        "url": "http://localhost/test",
-        "user_agent": "UnitTest"
-    },
-    "float": 3.14,
-    "frozenset": [
-        1,
-        2,
-        3
-    ],
-    "hex": "0x64",
-    "int": 42,
-    "list": [
+    "Tuple": [
         1,
         2
     ],
-    "matPlotLib.plot": [
-        {
-            "x": [
-                1,
-                2,
-                3
-            ],
-            "y": [
-                4,
-                5,
-                6
-            ]
-        }
-    ],
-    "memoryview": "hello world",
-    "named tuple": null,
-    "range": [
-        0,
-        1,
-        2
-    ],
-    "set": [
-        1,
-        2,
-        3
-    ],
-    "singletons": [
-        true,
-        false,
-        null
-    ],
-    "string": "hello mars!",
-    "tuple": [
-        1,
-        2
-    ]
+    "UUID": "deeefd1a-527d-4196-9b36-ee68f514fb1d"
 }
 ```
 
